@@ -1,14 +1,13 @@
 import sys
 import os
 
-# Correção para o erro de codificação ASCII / UTF-8
+# Correção para o erro de codificação ASCII / UTF-8 no terminal
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stdin.reconfigure(encoding='utf-8')
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
 import streamlit as st
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
 st.set_page_config(page_title="Agente IA Gemini")
 st.title("Meu Agente de IA com Gemini")
@@ -30,52 +29,54 @@ if not api_key_input:
     st.warning("Por favor, insira sua chave de API na barra lateral para começar.")
     st.stop()
 
-# Configura o cliente forçando o uso da chave direta sem buscar OAuth
+# Configuração da API Key
 try:
-    client = genai.Client(
-        api_key=api_key_input,
-        http_options=types.HttpOptions(api_version="v1alpha")
+    genai.configure(api_key=api_key_input)
+    
+    # Define as instruções do sistema e o modelo
+    system_instruction = "Você é um assistente virtual amigável, criativo e focado em resolver problemas com explicações diretas e claras."
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        system_instruction=system_instruction
     )
 except Exception as e:
-    st.error(f"Erro ao inicializar o cliente: {e}")
+    st.error(f"Erro ao inicializar o modelo: {e}")
     st.stop()
 
-SYSTEM_INSTRUCTION = "Você é um assistente virtual amigável, criativo e focado em resolver problemas com explicações diretas e claras."
-
+# Histórico da conversa
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Exibe mensagens antigas na tela
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
+# Entrada do usuário
 if user_input := st.chat_input("Digite sua pergunta..."):
+    # Exibe a mensagem do usuário
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.write(user_input)
 
+    # Gera a resposta do modelo
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
             try:
-                formatted_contents = [
-                    types.Content(
-                        role="user" if m["role"] == "user" else "model",
-                        parts=[types.Part.from_text(text=m["content"])]
-                    )
-                    for m in st.session_state.messages
+                # Prepara o histórico no formato aceito pela biblioteca
+                history = [
+                    {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
+                    for m in st.session_state.messages[:-1]
                 ]
-
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=formatted_contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_INSTRUCTION,
-                        temperature=0.7,
-                    )
-                )
+                
+                # Inicia a conversa com o histórico e envia a nova mensagem
+                chat = model.start_chat(history=history)
+                response = chat.send_message(user_input)
 
                 response_text = response.text
                 st.write(response_text)
+                
+                # Salva a resposta no histórico
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
 
             except Exception as e:
