@@ -8,7 +8,7 @@ st.set_page_config(page_title="Agente IA Gemini", page_icon="🤖")
 st.title("🤖 Meu Agente de IA com Gemini")
 
 # Obter a API Key das variáveis de ambiente (Secrets)
-api_key = os.environ.get("GEMINI_API_KEY")
+api_key = os.environ.get("AQ.Ab8RN6LWPyXLA3YlEEuEa5eOaWAxvaMW9dhjh_9BpCigjGdqfA")
 
 if not api_key:
     st.error("Chave de API do Gemini não encontrada! Configure a variável GEMINI_API_KEY.")
